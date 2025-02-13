@@ -12,6 +12,8 @@ import numpy as np
 import gym
 import pandas as pd
 
+import json
+
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import math
 import time
@@ -19,6 +21,20 @@ import time
 import torch
 import redis
 from edgeric_messenger import *
+import models.mlp_policy
+
+class MyEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.integer):
+            return int(obj)
+        elif isinstance(obj, np.floating):
+            return float(obj)
+        elif isinstance(obj, np.ndarray):
+            return obj.tolist()
+        else:
+            return super(MyEncoder, self).default(obj)
+
+
 
 total_brate = []
 avg_CQIs  = []
@@ -72,7 +88,15 @@ def eval_loop_weight(eval_episodes, idx_algo):
 
         if(flag == True):
             cnt = 0
-            flag = False  
+            flag = False
+
+        with open('test_dict_max_cqi.json', 'w') as f:
+            # None
+            # f.write('{'+str(ue_dict)+'},'+'\n')
+            # dic = json.load(f)
+            # dic.update(ue_dict)
+            # dic['data'].append(ue_dict)
+            json.dump(ari_data_dict, f, indent=2, cls=MyEncoder)
 
     #redis_db.set(key_algo, value_algo)   
 
@@ -108,6 +132,8 @@ def algo1_maxCQI_multi():
     brate = np.sum(txb)
     total_brate.append(brate)
 
+    ue_data['weight'] = np.zeros(numues * 2)
+
     if min(CQIs) > 0:  # Check if all CQIs are positive
         maxIndex = np.argmax(CQIs)
         new_weights = np.zeros(numues)
@@ -122,17 +148,36 @@ def algo1_maxCQI_multi():
             
             # Store RNTI and corresponding weight
             weights[i*2+0] = RNTIs[i]
+            ue_data['weight'][i * 2] = weights[i*2+0]
             weights[i*2+1] = new_weights[i]
+            ue_data['weight'][i*2 + 1] = weights[i*2+1]
         #print(f"Printing weight: {weights}\n")
-        return weights
+
         
     else:  
         for i in range(numues):
         # Store RNTI and corresponding weight
             weights[i*2+0] = RNTIs[i]
+            ue_data['weight'][i * 2] = weights[i * 2 + 0]
             weights[i*2+1] = 1/numues
+            ue_data['weight'][i * 2 + 1] = weights[i * 2 + 1]
         #print(f"Printing weight: {weights}\n")  
-        return weights
+
+
+
+
+
+
+
+    #send_scheduling_weight(weight, True)
+
+    #ue_data['obs'] = list(obs[0].data.numpy())
+    #ue_data['action'] = list(action.numpy())
+
+    # print(f"UE Dictionary: {ue_data} \n")
+    ari_data_dict['data'].append(ue_data)
+    return weights
+
 
 def algo2_maxWeight_multi():
     global total_brate
@@ -146,6 +191,8 @@ def algo2_maxWeight_multi():
     txb = [data['Tx_brate'] for data in ue_data.values()]
     brate = np.sum(txb)
     total_brate.append(brate)
+    ue_data['weight'] = np.zeros(numues * 2)
+
     if (min(CQIs) > 0): 
         sum_CQI = np.sum(CQIs)
         sum_BL = np.sum(BLs) 
@@ -157,14 +204,21 @@ def algo2_maxWeight_multi():
    
         for i in range(numues):
             weights[i*2+0] = RNTIs[i]
+            ue_data['weight'][i * 2] = weights[i*2+0]
             weights[i*2+1] = new_weights[i]
+            ue_data['weight'][i * 2 + 1] = weights[i * 2 + 1]
     
     else:  
          for i in range(numues):
             weights[i*2+0] = RNTIs[i]
+            ue_data['weight'][i * 2] = weights[i*2+0]
             weights[i*2+1] = 1/numues
-    
-    return weights 
+            ue_data['weight'][i * 2 + 1] = weights[i * 2 + 1]
+
+
+    ari_data_dict['data'].append(ue_data)
+    return weights
+
 
 def algo3_propFair_multi(avg_CQIs):
     global total_brate
@@ -255,7 +309,8 @@ def eval_loop_model(num_episodes, out_dir):
     output_dir = out_dir 
     global total_brate
     
-    model = torch.load(os.path.join(output_dir, "model_demo.pt"), map_location=torch.device('cpu'))
+    model = torch.load(os.path.join(output_dir, "model_demo.pt"), map_location=torch.device('cpu'), weights_only=False)
+    torch.serialization.add_safe_globals([models.mlp_policy.Policy])
     #model.to("cpu")
     model.eval()
 
@@ -288,16 +343,42 @@ def eval_loop_model(num_episodes, out_dir):
             
             action = model.select_action(obs)
             action = torch.squeeze(action)
-        
+            # action = abs(action)
+
+            #print("action = "+str(action))
+
+        ue_data['percentage_RBG'] = np.zeros(numues)
+        ue_data['weight'] = np.zeros(numues*2)
         for ue in range(numues):
 
             percentage_RBG = action[ue] / sum(action)
+            # percentage_RBG = abs(action[ue]) / sum(abs(action))
+            ue_data['percentage_RBG'][ue] = percentage_RBG.numpy()
             
             weight[ue*2+1] = percentage_RBG
+            ue_data['weight'][ue*2+1] = weight[ue*2+1] #.numpy()
             weight[ue*2] = RNTIs[ue]
+            ue_data['weight'][ue*2] = weight[ue*2]
 
-        send_scheduling_weight(weight, True) 
-    
+
+        send_scheduling_weight(weight, True)
+
+        ue_data['obs'] = list(obs[0].data.numpy())
+        ue_data['action'] = list(action.numpy())
+
+
+        #print(f"UE Dictionary: {ue_data} \n")
+        ari_data_dict['data'].append(ue_data)
+
+
+    with open('test_dict_2.json', 'w') as f:
+        #None
+        # f.write('{'+str(ue_dict)+'},'+'\n')
+        #dic = json.load(f)
+        #dic.update(ue_dict)
+        #dic['data'].append(ue_dict)
+        json.dump(ari_data_dict, f, indent=2, cls=MyEncoder)
+
 #################
 algorithm_mapping = {
     "Fixed Weight": 0,
@@ -322,6 +403,7 @@ redis_db = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
 #redis_db = redis.StrictRedis(host = 'localhost', port=6379, decode_responses = False, db=0)
 
 if __name__ == "__main__":
+    ari_data_dict = {'data': []}
     t = 0
     
     while True:

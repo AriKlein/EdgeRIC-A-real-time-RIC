@@ -1,5 +1,7 @@
+.idea/
 *.pyc
 *.swp
+*.swo
 *.o
 srsran-enb/build
 srsran-ue/build

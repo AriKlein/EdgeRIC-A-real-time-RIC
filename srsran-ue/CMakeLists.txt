@@ -559,10 +559,10 @@ if(NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 5.0)
 endif()
 
 # GCC >= 12.1.0: Disable analysis on "maybe-uninitialized" variables because of the high false-positive rate
-if(CMAKE_COMPILER_IS_GNUCXX AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 12.1)
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-maybe-uninitialized")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-maybe-uninitialized")
-endif()
+#if(CMAKE_COMPILER_IS_GNUCXX AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 12.1)
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-maybe-uninitialized")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-maybe-uninitialized")
+#endif()
 
 if(CMAKE_C_COMPILER_ID MATCHES "GNU")
   # Increase inlining limit to allow gcc compilation on e.g. RPi2

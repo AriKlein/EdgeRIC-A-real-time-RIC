@@ -78,7 +78,7 @@ struct timeval __start, __end;
 //long __utime, __seconds, __useconds; 
 long __total_dt = 0; 
 
-std::map<uint16_t, uint8_t> __cqis; 
+std::map<uint16_t, uint8_t> __cqis_ari; 
 
 std::map<uint16_t, float> tx_bytes_ues;
 std::map<uint16_t, float> prev_tx_bytes_ues;
@@ -932,8 +932,8 @@ void mac::ric_comm(std::map<uint16_t, float>& weights, sched_interface::dl_sched
     // Read cqi
     ue_pair.second->metrics_read(&ue_metrics);    
     uint8_t cqi = (uint8_t) ue_metrics.dl_cqi;
-    __cqis[rnti] = cqi ? cqi : __cqis[rnti]; // if cqi is not zero, do update
-    cqi = __cqis[rnti]; 
+    __cqis_ari[rnti] = cqi ? cqi : __cqis_ari[rnti]; // if cqi is not zero, do update
+    cqi = __cqis_ari[rnti]; 
     
     // read backlogbuffers    
     int backlog = backlogBuffer[rnti]; 
