@@ -90,13 +90,13 @@ def eval_loop_weight(eval_episodes, idx_algo):
             cnt = 0
             flag = False
 
-        with open('test_dict_max_cqi.json', 'w') as f:
+        with open('test_dict_non_rl.json', 'w') as f:
             # None
             # f.write('{'+str(ue_dict)+'},'+'\n')
             # dic = json.load(f)
             # dic.update(ue_dict)
             # dic['data'].append(ue_dict)
-            json.dump(ari_data_dict, f, indent=2, cls=MyEncoder)
+            json.dump(ari_data_dict_non_rl, f, indent=2, cls=MyEncoder)
 
     #redis_db.set(key_algo, value_algo)   
 
@@ -175,7 +175,7 @@ def algo1_maxCQI_multi():
     #ue_data['action'] = list(action.numpy())
 
     # print(f"UE Dictionary: {ue_data} \n")
-    ari_data_dict['data'].append(ue_data)
+    ari_data_dict_non_rl['data'].append(ue_data)
     return weights
 
 
@@ -216,7 +216,7 @@ def algo2_maxWeight_multi():
             ue_data['weight'][i * 2 + 1] = weights[i * 2 + 1]
 
 
-    ari_data_dict['data'].append(ue_data)
+    ari_data_dict_non_rl['data'].append(ue_data)
     return weights
 
 
@@ -368,16 +368,16 @@ def eval_loop_model(num_episodes, out_dir):
 
 
         #print(f"UE Dictionary: {ue_data} \n")
-        ari_data_dict['data'].append(ue_data)
+        ari_data_dict_rl['data'].append(ue_data)
 
 
-    with open('test_dict_2.json', 'w') as f:
+    with open('test_dict_rl.json', 'w') as f:
         #None
         # f.write('{'+str(ue_dict)+'},'+'\n')
         #dic = json.load(f)
         #dic.update(ue_dict)
         #dic['data'].append(ue_dict)
-        json.dump(ari_data_dict, f, indent=2, cls=MyEncoder)
+        json.dump(ari_data_dict_rl, f, indent=2, cls=MyEncoder)
 
 #################
 algorithm_mapping = {
@@ -403,7 +403,9 @@ redis_db = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
 #redis_db = redis.StrictRedis(host = 'localhost', port=6379, decode_responses = False, db=0)
 
 if __name__ == "__main__":
-    ari_data_dict = {'data': []}
+    ari_data_dict_rl = {'data': []}
+    ari_data_dict_non_rl = {'data': []}
+
     t = 0
     
     while True:
